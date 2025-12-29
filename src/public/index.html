@@ -58,9 +58,12 @@
   <!-- ===== ADMIN PEDIDOS ===== -->
   <section id="admin-orders" class="card hidden" data-role="admin">
     <h2>Pedidos</h2>
-    <label class="toggle-completed">
-      Mostrar pedidos completados
-      <input type="checkbox" id="toggle-completed" />
+    <label>
+      Filtrar por estado:
+      <select id="order-filter">
+        <option value="pending">En curso</option>
+        <option value="completed">Completados</option>
+      </select>
     </label>
     <ul id="orders-list" class="list"></ul>
   </section>
