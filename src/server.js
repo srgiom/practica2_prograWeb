@@ -8,8 +8,11 @@ import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
+
+/* ⭐ GRAPHQL */
+import { graphqlHTTP } from "express-graphql";
+import schema from "./graphql/schema.js";
+import resolvers from "./graphql/resolvers.js";
 
 import { PORT, MONGO_URI, JWT_SECRET } from "./config.js";
 import authRoutes from "./routes/authRoutes.js";
@@ -23,24 +26,47 @@ const app = express();
 /* ----------------------------- Middlewares HTTP ---------------------------- */
 app.use(cors({ origin: true }));
 app.use(morgan("dev"));
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use(express.static("src/public")); // sirve frontend y /public estáticos
 
-/* --------------------------------- Rutas ----------------------------------- */
+/* --------------------------------- Rutas REST ----------------------------- */
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/chat", chatRoutes); // /api/chat/health, /api/chat/usercount
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
+/* ⭐ GRAPHQL ENDPOINT */
+app.use(
+  "/graphql",
+  graphqlHTTP((req) => {
+    let user = null;
+
+    const auth = req.headers.authorization;
+    if (auth && auth.startsWith("Bearer ")) {
+      const token = auth.split(" ")[1];
+      try {
+        user = jwt.verify(token, JWT_SECRET);
+      } catch (e) {
+        user = null;
+      }
+    }
+
+    return {
+      schema,
+      rootValue: resolvers,
+      graphiql: true,
+      context: { user }
+    };
+  })
+);
+
 /* ------------------- Subida de imágenes del chat (BASE64) ------------------ */
-// Usamos memoria: no escribe a disco, apto para Render sin almacenamiento
 const uploadChat = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 500 * 1024 } // 500 KB por imagen (ajusta si quieres)
+  limits: { fileSize: 500 * 1024 } // 500 KB
 });
 
-// Devuelve data URL (base64) para que el frontend la envíe por socket y se persista en Mongo
 app.post("/api/chat/upload", uploadChat.single("image"), (req, res) => {
   if (!req.file) return res.status(400).json({ ok: false, error: "Sin archivo" });
   const mime = req.file.mimetype || "image/jpeg";
@@ -51,8 +77,7 @@ app.post("/api/chat/upload", uploadChat.single("image"), (req, res) => {
 /* ------------------------- Middleware global de errores -------------------- */
 app.use((err, _req, res, _next) => {
   console.error("❌ Error:", err?.message || err);
-  const status = err.status || 500;
-  res.status(status).json({ ok: false, error: err.message || "Error interno" });
+  res.status(err.status || 500).json({ ok: false, error: err.message || "Error interno" });
 });
 
 /* -------------------------- HTTP server + Socket.IO ------------------------ */
@@ -62,8 +87,6 @@ const io = new Server(server, {
     origin: [
       "http://localhost:3000",
       "http://127.0.0.1:3000"
-      // añade otros orígenes si usas Vite/Live Server:
-      // "http://localhost:5173", "http://127.0.0.1:5500"
     ]
   }
 });
@@ -88,17 +111,14 @@ io.on("connection", async (socket) => {
   app.set("usercount", connected);
   io.emit("usercount", connected);
 
-  // Historial (últimos 20 mensajes en orden cronológico)
   const history = await ChatMessage.find().sort({ ts: -1 }).limit(20);
   socket.emit("history", history.reverse());
 
-  // Mensaje de join a otros usuarios (no al propio)
   socket.broadcast.emit("system", {
     kind: "join",
     text: `🟢 ${socket.data.user.username} se ha unido`
   });
 
-  // Indicador "escribiendo..."
   socket.on("typing", (isTyping) => {
     socket.broadcast.emit("typing", {
       user: socket.data.user.username,
@@ -106,7 +126,6 @@ io.on("connection", async (socket) => {
     });
   });
 
-  // Mensaje de chat (texto e imagen/base64). Revalidamos token por defensa.
   socket.on("chat message", async (payload = {}) => {
     try {
       jwt.verify(payload.token, JWT_SECRET);
@@ -115,14 +134,14 @@ io.on("connection", async (socket) => {
         user: socket.data.user.username,
         color: socket.data.user.color,
         text: payload.text || "",
-        image: payload.image || null, // aquí llega la data URL desde /api/chat/upload
+        image: payload.image || null,
         ts: new Date()
       };
 
-      await ChatMessage.create(msg); // persistencia en Mongo
-      io.emit("chat message", msg);  // broadcast a todos
+      await ChatMessage.create(msg);
+      io.emit("chat message", msg);
     } catch {
-      // ignoramos si el token es inválido/expirado
+      // token inválido → ignoramos
     }
   });
 
@@ -142,7 +161,6 @@ async function ensureDefaultAdmin() {
   const username = process.env.ADMIN_USERNAME || "admin";
   const password = process.env.ADMIN_PASSWORD || "admin";
 
-  // color estable según nombre
   let h = 0;
   for (let i = 0; i < username.length; i++)
     h = (h * 31 + username.charCodeAt(i)) % 360;

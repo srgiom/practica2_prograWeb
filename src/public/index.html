@@ -12,6 +12,12 @@
     <div class="brand">Portal · Productos</div>
     <nav class="nav-actions">
       <button id="link-chat" class="btn ghost">Chat</button>
+
+      <!-- === PRACTICA 2: BOTÓN CARRITO (AÑADIDO) === -->
+      <button id="btn-cart" class="btn ghost hidden">
+        🛒 Carrito (<span id="cart-count">0</span>)
+      </button>
+
       <span id="user-pill" class="pill hidden"></span>
       <button id="btn-logout" class="btn danger hidden">Cerrar sesión</button>
     </nav>
@@ -71,6 +77,21 @@
       <div class="row end">
         <button id="edit-cancel" class="btn">Cancelar</button>
         <button id="edit-save" class="btn primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- === PRACTICA 2: MODAL CARRITO (AÑADIDO) === -->
+  <div id="modal-cart" class="modal hidden">
+    <div class="modal-card">
+      <h3>Carrito</h3>
+      <ul id="cart-list" class="list"></ul>
+      <p class="total">
+        Total: <strong><span id="cart-total">0</span> €</strong>
+      </p>
+      <div class="row end">
+        <button id="cart-buy" class="btn success">Comprar</button>
+        <button id="cart-close" class="btn ghost">Cerrar</button>
       </div>
     </div>
   </div>

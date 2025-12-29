@@ -17,13 +17,22 @@ const API = {
     });
     const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || "Registro inválido"); return true;
   },
-  async login(username, password) {
-    const r = await fetch("/api/auth/login", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-    const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || "Login inválido"); return j.token;
-  },
+async login(username, password) {
+  const r = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
+
+  const j = await r.json();
+  if (!r.ok || !j.ok) {
+    throw new Error(j.error || "Login inválido");
+  }
+
+  localStorage.setItem("jwt", j.token);
+
+  return j.token;
+},
   async me() {
     const r = await fetch("/api/auth/me", { headers: this.headers() });
     if (!r.ok) return null; const j = await r.json(); return j.user;
@@ -64,8 +73,8 @@ const API = {
 const $ = (s) => document.querySelector(s);
 const authCard = $("#auth-card");
 const authMsg = $("#auth-msg");
-const btnAuth = $("#btn-auth");     // único botón de acción
-const btnToggle = $("#btn-toggle"); // alternar modo
+const btnAuth = $("#btn-auth");
+const btnToggle = $("#btn-toggle");
 const btnLogout = $("#btn-logout");
 const userPill = $("#user-pill");
 const linkChat = $("#link-chat");
@@ -87,7 +96,7 @@ const fImg = document.getElementById("f-img");
 const editCancel = document.getElementById("edit-cancel");
 const editSave = document.getElementById("edit-save");
 
-let mode = "login"; // "login" o "register"
+let mode = "login";
 let editingId = null;
 
 // -------------------- Helpers UI --------------------
@@ -129,6 +138,9 @@ btnAuth.onclick = async () => {
     if (mode === "login") {
       const token = await API.login(u, p);
       localStorage.setItem("jwt", token);
+
+      console.log("JWT TOKEN:", token);
+
       authMsg.textContent = "Login correcto ✓";
       await boot();
     } else {
@@ -207,7 +219,6 @@ async function loadProducts(forceBust = false) {
          <button class="btn danger" data-role="admin" data-act="del">Eliminar</button>
        </div>`;
 
-    // Ver detalle
     li.querySelector('[data-act="view"]').onclick = async () => {
       const d = await API.getProduct(p._id);
       const dImg = asImgSrc(d.imagen ?? d.image ?? d.foto, true);
@@ -234,6 +245,16 @@ async function loadProducts(forceBust = false) {
       await API.delProduct(p._id);
       await loadProducts(true);
     };
+
+    const btnAddCart = document.createElement("button");
+    btnAddCart.className = "btn ghost";
+    btnAddCart.textContent = "Añadir al carrito";
+    btnAddCart.onclick = () => addToCart(p);
+    li.querySelector(".actions").appendChild(btnAddCart);
+
+    if (!localStorage.getItem("jwt")) {
+      btnAddCart.style.display = "none";
+    }
 
     list.appendChild(li);
   }
@@ -262,6 +283,8 @@ async function boot() {
     userPill.classList.remove("hidden");
     btnLogout.classList.remove("hidden");
     authCard.classList.add("hidden");
+    btnCart.classList.remove("hidden");
+renderCart();
   } else {
     window.__role = "guest";
     userPill.classList.add("hidden");
@@ -275,3 +298,104 @@ async function boot() {
 document.getElementById("detail-close")?.addEventListener("click", () => close(modalDetail));
 updateAuthUI();
 boot();
+
+/* =========================================================
+   === PRACTICA 2: CARRITO + CHECKOUT (AÑADIDO) ============
+   ========================================================= */
+
+// refs del modal carrito (ya existen en index.html)
+const btnCart = document.getElementById("btn-cart");
+const modalCart = document.getElementById("modal-cart");
+const cartList = document.getElementById("cart-list");
+const cartTotal = document.getElementById("cart-total");
+const cartCount = document.getElementById("cart-count");
+const cartBuy = document.getElementById("cart-buy");
+const cartClose = document.getElementById("cart-close");
+
+// estado carrito
+let cart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+function saveCart() {
+  localStorage.setItem("cart", JSON.stringify(cart));
+  renderCart();
+}
+
+function addToCart(product) {
+  const f = cart.find(i => i._id === product._id);
+  if (f) f.qty++;
+  else cart.push({ _id: product._id, nombre: product.nombre, precio: product.precio, qty: 1 });
+  saveCart();
+}
+
+function removeFromCart(productId) {
+  cart = cart.filter(i => i._id !== productId);
+  saveCart();
+}
+
+function renderCart() {
+  cartList.innerHTML = "";
+  let total = 0;
+
+  cart.forEach(i => {
+    total += i.precio * i.qty;
+    const li = document.createElement("li");
+    li.className = "row item";
+
+    li.innerHTML = `
+      <div class="grow">
+        <div class="title">${i.nombre}</div>
+        <div class="sub">${i.qty} × ${i.precio} €</div>
+      </div>
+      <button class="btn danger">✕</button>
+    `;
+
+    // botón eliminar (AÑADIDO)
+    li.querySelector("button").onclick = () => removeFromCart(i._id);
+
+    cartList.appendChild(li);
+  });
+
+  cartTotal.textContent = total.toFixed(2);
+  cartCount.textContent = cart.reduce((s, i) => s + i.qty, 0);
+}
+
+// eventos modal
+btnCart.onclick = () => { renderCart(); modalCart.classList.remove("hidden"); };
+cartClose.onclick = () => modalCart.classList.add("hidden");
+
+// CHECKOUT → GraphQL createOrder
+cartBuy.onclick = async () => {
+  if (!cart.length) return alert("Carrito vacío");
+
+  const items = cart.map(i => ({ productId: i._id, quantity: i.qty }));
+  const token = localStorage.getItem("jwt");
+  if (!token) {
+    alert("No autenticado");
+    return;
+  }
+
+  const r = await fetch("/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      query: `
+        mutation ($items:[OrderItemInput!]!) {
+          createOrder(items:$items){ _id }
+        }
+      `,
+      variables: { items },
+      token // 👈 CLAVE: se envía también en el body
+    })
+  });
+
+  const j = await r.json();
+  if (j.errors) return alert(j.errors[0].message);
+
+  cart = [];
+  saveCart();
+  modalCart.classList.add("hidden");
+  alert("Pedido creado correctamente");
+};
