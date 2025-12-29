@@ -6,18 +6,6 @@
 
 ---
 
-## 🌐 Enlaces del proyecto
-
-- **Repositorio GitHub:**  
-  https://github.com/srgiom/practica2_prograWeb
-
-- **Aplicación desplegada:**  
-  https://practica1-prograweb.onrender.com/index.html
-
-Aplicación desplegada en **Render**, conectada a **MongoDB Atlas**, con autenticación **JWT**, API **REST + GraphQL** y persistencia completa.
-
----
-
 ## 🎯 Objetivo de la práctica 2
 
 Ampliar la aplicación desarrollada en la **Práctica 1** incorporando:
