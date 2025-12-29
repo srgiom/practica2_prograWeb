@@ -142,6 +142,7 @@ El administrador puede:
 	•	Total.
 	•	Fecha.
 	•	Marcar pedidos como completed.
+	• Se muestra el identificador único (ID) del usuario asociado al pedido para facilitar la trazabilidad.
 
 Todo gestionado desde el frontend con GraphQL.
 
@@ -155,6 +156,7 @@ El administrador puede:
 	•	Cambiar rol de usuarios (user ↔ admin), con restricciones:
 	•	❌ No puede cambiar su propio rol.
 	•	❌ No puede eliminar un usuario con rol admin.
+	• Se muestra el ID único de cada usuario para identificación interna y gestión avanzada.
 
 Restricciones validadas en backend y frontend.
 

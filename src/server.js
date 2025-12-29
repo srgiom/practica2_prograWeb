@@ -32,7 +32,7 @@ app.use(express.static("src/public")); // sirve frontend y /public estáticos
 /* --------------------------------- Rutas REST ----------------------------- */
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
-app.use("/api/chat", chatRoutes); // /api/chat/health, /api/chat/usercount
+app.use("/api/chat", chatRoutes);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
@@ -56,6 +56,8 @@ app.use(
       schema,
       rootValue: resolvers,
       graphiql: true,
+
+      // ✅ ESTO ES LO CORRECTO PARA express-graphql
       context: { user }
     };
   })

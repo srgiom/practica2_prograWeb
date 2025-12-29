@@ -42,6 +42,7 @@ const schema = buildSchema(`
     products: [Product!]!
     orders: [Order!]!
     order(id: ID!): Order
+    myOrder(id: ID!): Order
     users: [User!]!
     myOrders: [Order!]!
   }

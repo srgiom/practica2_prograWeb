@@ -7,8 +7,9 @@ const resolvers = {
     return await Product.find();
   },
 
-  orders: async (args, context) => {
-    if (!context.user || context.user.role !== "admin") {
+  orders: async (args, req) => {
+    const user = req?.user;
+    if (!user || user.role !== "admin") {
       throw new Error("No autorizado");
     }
 
@@ -26,8 +27,9 @@ const resolvers = {
     });
   },
 
-  createOrder: async ({ items }, context) => {
-    if (!context.user) {
+  createOrder: async ({ items }, req) => {
+    const user = req?.user;
+    if (!user) {
       throw new Error("No autenticado");
     }
 
@@ -46,7 +48,7 @@ const resolvers = {
     }
 
     const order = new Order({
-      user: context.user._id,
+      user: user._id,
       items: populatedItems,
       total,
       status: "pending"
@@ -58,7 +60,6 @@ const resolvers = {
       .populate("items.product")
       .populate("user");
 
-    // 🔧 CONVERSIÓN createdAt → string
     const obj = saved.toObject();
     return {
       ...obj,
@@ -70,36 +71,41 @@ const resolvers = {
   // AÑADIDO PRACTICA 2
   // =======================
 
-  users: async (args, context) => {
-    if (!context.user || context.user.role !== "admin") {
+  users: async (args, req) => {
+    const user = req?.user;
+    if (!user || user.role !== "admin") {
       throw new Error("No autorizado");
     }
     return await User.find();
   },
 
-  updateUserRole: async ({ userId, role }, context) => {
-    if (!context.user || context.user.role !== "admin") {
+  updateUserRole: async ({ userId, role }, req) => {
+    const userReq = req?.user;
+    if (!userReq || userReq.role !== "admin") {
       throw new Error("No autorizado");
     }
 
-    if (context.user._id === userId) {
-      throw new Error("No puedes cambiar tu propio rol");
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("Usuario no encontrado");
     }
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { role },
-      { new: true }
-    );
+    // 🔒 Bloquear SOLO el usuario admin “raíz”
+    if (user.username === "admin") {
+      throw new Error("No se puede cambiar el rol del usuario admin");
+    }
 
-    if (!user) throw new Error("Usuario no encontrado");
+    user.role = role;
+    await user.save();
+
     return user;
   },
 
-  updateOrderStatus: async (args, context) => {
+  updateOrderStatus: async (args, req) => {
+    const user = req?.user;
     const { orderId, status } = args;
 
-    if (!context.user || context.user.role !== "admin") {
+    if (!user || user.role !== "admin") {
       throw new Error("No autorizado");
     }
 
@@ -119,7 +125,6 @@ const resolvers = {
       .populate("user")
       .populate("items.product");
 
-    // 🔧 CONVERSIÓN createdAt → string
     const obj = updated.toObject();
     return {
       ...obj,
@@ -127,10 +132,11 @@ const resolvers = {
     };
   },
 
-  order: async (args, context) => {
+  order: async (args, req) => {
+    const user = req?.user;
     const { id } = args;
 
-    if (!context.user || context.user.role !== "admin") {
+    if (!user || user.role !== "admin") {
       throw new Error("No autorizado");
     }
 
@@ -142,7 +148,6 @@ const resolvers = {
       throw new Error("Pedido no encontrado");
     }
 
-    // 🔧 CONVERSIÓN createdAt → string
     const obj = order.toObject();
     return {
       ...obj,
@@ -150,27 +155,29 @@ const resolvers = {
     };
   },
 
-  myOrders: async (args, context) => {
-  if (!context.user) {
-    throw new Error("No autenticado");
-  }
+  myOrders: async (args, req) => {
+    const user = req?.user;
+    if (!user) {
+      throw new Error("No autenticado");
+    }
 
-  const orders = await Order.find({ user: context.user._id })
-    .populate("items.product")
-    .populate("user")
-    .sort({ createdAt: -1 });
+    const orders = await Order.find({ user: user._id })
+      .populate("items.product")
+      .populate("user")
+      .sort({ createdAt: -1 });
 
-  return orders.map(o => {
-    const obj = o.toObject();
-    return {
-      ...obj,
-      createdAt: obj.createdAt ? obj.createdAt.toISOString() : null
-    };
-  });
-},
+    return orders.map(o => {
+      const obj = o.toObject();
+      return {
+        ...obj,
+        createdAt: obj.createdAt ? obj.createdAt.toISOString() : null
+      };
+    });
+  },
 
-  deleteUser: async ({ userId }, context) => {
-    if (!context.user || context.user.role !== "admin") {
+  deleteUser: async ({ userId }, req) => {
+    const userReq = req?.user;
+    if (!userReq || userReq.role !== "admin") {
       throw new Error("No autorizado");
     }
 
@@ -179,12 +186,36 @@ const resolvers = {
       throw new Error("Usuario no encontrado");
     }
 
-    if (userToDelete.role === "admin") {
-      throw new Error("No se puede eliminar un administrador");
+    if (userToDelete.username === "admin") {
+      throw new Error("No se puede eliminar el usuario admin");
     }
 
     const res = await User.findByIdAndDelete(userId);
     return !!res;
+  },
+
+  myOrder: async ({ id }, req) => {
+    const user = req?.user;
+    if (!user) {
+      throw new Error("No autenticado");
+    }
+
+    const order = await Order.findOne({
+      _id: id,
+      user: user._id
+    })
+      .populate("items.product")
+      .populate("user");
+
+    if (!order) {
+      throw new Error("Pedido no encontrado");
+    }
+
+    const obj = order.toObject();
+    return {
+      ...obj,
+      createdAt: obj.createdAt ? obj.createdAt.toISOString() : null
+    };
   }
 };
 

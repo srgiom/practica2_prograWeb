@@ -295,10 +295,6 @@ async function loadMyOrders() {
             status
             total
             createdAt
-            items {
-              quantity
-              product { nombre precio }
-            }
           }
         }
       `
@@ -306,19 +302,34 @@ async function loadMyOrders() {
   });
 
   const j = await r.json();
-  if (j.errors) return;
+  if (j.errors) {
+    console.error(j.errors);
+    return;
+  }
 
   userOrdersList.innerHTML = "";
 
   j.data.myOrders.forEach(o => {
     const li = document.createElement("li");
-    li.className = "item";
+    li.className = "row item";
+
     li.innerHTML = `
-      <div class="title">Pedido ${o._id.slice(-5)}</div>
-      <div class="sub">
-        ${new Date(o.createdAt).toLocaleString()} · ${o.status} · ${o.total} €
+      <div class="grow">
+        <div class="title">Pedido ${o._id.slice(-5)}</div>
+        <div class="sub">
+          ${new Date(o.createdAt).toLocaleString()} · ${o.status} · ${o.total} €
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost">Ver detalle</button>
       </div>
     `;
+
+    // 👉 VER DETALLE (usuario)
+    li.querySelector("button").onclick = () => {
+      viewMyOrderDetail(o._id);
+    };
+
     userOrdersList.appendChild(li);
   });
 
@@ -470,6 +481,10 @@ cartBuy.onclick = async () => {
   if (window.__role === "user") {
     loadMyOrders();
   }
+
+  if (window.__role === "admin") {
+    loadOrders();
+  }
 };
 
 // ===== PRACTICA 2: ADMIN PEDIDOS =====
@@ -478,8 +493,10 @@ const orderFilter = document.getElementById("order-filter");
 const usersList = document.getElementById("users-list");
 
 async function loadOrders() {
+  if (window.__role !== "admin") return;
+
   const token = localStorage.getItem("jwt");
-  if (!token || window.__role !== "admin") return;
+  if (!token) return;
 
   const r = await fetch("/graphql", {
     method: "POST",
@@ -495,7 +512,10 @@ async function loadOrders() {
             total
             status
             createdAt
-            user { username }
+            user {
+              _id
+              username
+            }
           }
         }
       `
@@ -503,20 +523,28 @@ async function loadOrders() {
   });
 
   const j = await r.json();
-  if (j.errors) return;
+
+  if (j.errors) {
+    console.error("GraphQL orders error:", j.errors);
+    return;
+  }
 
   ordersList.innerHTML = "";
-  const selectedStatus = orderFilter.value;
+
+  // ✅ CLAVE: si no existe el select, no rompe
+  const filter = orderFilter?.value || "all";
 
   j.data.orders.forEach(o => {
-    if (o.status !== selectedStatus) return;
+    if (filter !== "all" && o.status !== filter) return;
+
     const li = document.createElement("li");
     li.className = "row item";
+
     li.innerHTML = `
       <div class="grow">
-        <div class="title">Pedido de ${o.user.username}</div>
+        <div class="title">Pedido de ${o.user.username} con ID: ${o.user._id}</div>
         <div class="sub">
-          Total: ${o.total} € | Estado: ${o.status}
+          ${new Date(o.createdAt).toLocaleString()} · ${o.status} · ${o.total} €
         </div>
       </div>
       <div class="actions">
@@ -529,15 +557,13 @@ async function loadOrders() {
       </div>
     `;
 
-    li.querySelector('[data-act="detail"]').onclick = (e) => {
-      e.stopPropagation();
+    li.querySelector('[data-act="detail"]').onclick = () => {
       viewOrderDetail(o._id);
     };
 
     const btnComplete = li.querySelector('[data-act="complete"]');
     if (btnComplete) {
-      btnComplete.onclick = async (e) => {
-        e.stopPropagation();
+      btnComplete.onclick = async () => {
         await updateOrderStatus(o._id, "completed");
         loadOrders();
       };
@@ -545,8 +571,6 @@ async function loadOrders() {
 
     ordersList.appendChild(li);
   });
-
-  document.getElementById("admin-orders").classList.remove("hidden");
 }
 
 async function loadUsers() {
@@ -584,11 +608,14 @@ async function loadUsers() {
   li.innerHTML = `
     <div class="grow">
       <div class="title">${u.username}</div>
-      <div class="sub">Rol: ${u.role}</div>
+      <div class="sub">
+        <div><strong>ID:</strong> ${u._id}</div>
+        <div>Rol: ${u.role}</div>
+      </div>
     </div>
     <div class="actions">
       ${
-        u.role !== "admin"
+        u.username !== "admin"
           ? `<button class="btn ghost" data-act="toggle">Cambiar rol</button>`
           : ``
       }
@@ -709,7 +736,10 @@ async function viewOrderDetail(orderId) {
             status
             total
             createdAt
-            user { username }
+            user {
+              _id
+              username
+            }
             items {
               quantity
               product { nombre precio }
@@ -727,9 +757,64 @@ async function viewOrderDetail(orderId) {
   const o = j.data.order;
 
   detailBody.innerHTML = `
+    <div><strong>ID usuario:</strong> ${o.user._id}</div>
     <div><strong>Usuario:</strong> ${o.user.username}</div>
     <div><strong>Estado:</strong> ${o.status}</div>
     <div><strong>Fecha:</strong> ${o.createdAt ? new Date(o.createdAt).toLocaleString() : "-"}</div>
+    <hr>
+    <ul>
+      ${o.items.map(i => `
+        <li>
+          ${i.product.nombre} — ${i.quantity} × ${i.product.precio} €
+        </li>
+      `).join("")}
+    </ul>
+    <hr>
+    <div><strong>Total:</strong> ${o.total} €</div>
+  `;
+
+  open(modalDetail);
+}
+
+async function viewMyOrderDetail(orderId) {
+  const token = localStorage.getItem("jwt");
+
+  const r = await fetch("/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      query: `
+        query ($id: ID!) {
+          myOrder(id: $id) {
+            _id
+            status
+            total
+            createdAt
+            items {
+              quantity
+              product { nombre precio }
+            }
+          }
+        }
+      `,
+      variables: { id: orderId }
+    })
+  });
+
+  const j = await r.json();
+  if (j.errors) {
+    alert(j.errors[0].message);
+    return;
+  }
+
+  const o = j.data.myOrder;
+
+  detailBody.innerHTML = `
+    <div><strong>Estado:</strong> ${o.status}</div>
+    <div><strong>Fecha:</strong> ${new Date(o.createdAt).toLocaleString()}</div>
     <hr>
     <ul>
       ${o.items.map(i => `
@@ -760,4 +845,6 @@ boot = async () => {
   await afterLoginAdmin();
 };
 
-orderFilter.addEventListener("change", loadOrders);
+if (orderFilter) {
+  orderFilter.addEventListener("change", loadOrders);
+}
