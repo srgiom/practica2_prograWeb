@@ -293,6 +293,11 @@ renderCart();
   }
 
   await loadProducts();
+
+  if (user.role === "admin") {
+    document.getElementById("admin-orders").classList.remove("hidden");
+    loadOrders();
+  }
 }
 
 document.getElementById("detail-close")?.addEventListener("click", () => close(modalDetail));
@@ -399,3 +404,108 @@ cartBuy.onclick = async () => {
   modalCart.classList.add("hidden");
   alert("Pedido creado correctamente");
 };
+
+// ===== PRACTICA 2: ADMIN PEDIDOS =====
+const ordersList = document.getElementById("orders-list");
+const toggleCompleted = document.getElementById("toggle-completed");
+
+async function loadOrders() {
+  const token = localStorage.getItem("jwt");
+  if (!token || window.__role !== "admin") return;
+
+  const r = await fetch("/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      query: `
+        query {
+          orders {
+            _id
+            total
+            status
+            createdAt
+            user { username }
+          }
+        }
+      `
+    })
+  });
+
+  const j = await r.json();
+  if (j.errors) return;
+
+  ordersList.innerHTML = "";
+  const showCompleted = toggleCompleted?.checked;
+
+  j.data.orders.forEach(o => {
+    if (o.status === "completed" && !showCompleted) return;
+    const li = document.createElement("li");
+    li.className = "row item";
+    li.innerHTML = `
+      <div class="grow">
+        <div class="title">Pedido de ${o.user.username}</div>
+        <div class="sub">
+          Total: ${o.total} € | Estado: ${o.status}
+        </div>
+      </div>
+      ${
+        o.status === "pending"
+          ? `<button class="btn success">Completar</button>`
+          : ""
+      }
+    `;
+
+    const btn = li.querySelector("button");
+    if (btn) {
+      btn.onclick = async () => {
+        await updateOrderStatus(o._id, "completed");
+        loadOrders();
+      };
+    }
+
+    ordersList.appendChild(li);
+  });
+
+  document.getElementById("admin-orders").classList.remove("hidden");
+}
+
+async function updateOrderStatus(orderId, status) {
+  const token = localStorage.getItem("jwt");
+
+  await fetch("/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      query: `
+        mutation ($orderId: ID!, $status: String!) {
+          updateOrderStatus(orderId: $orderId, status: $status) {
+            _id
+            status
+          }
+        }
+      `,
+      variables: { orderId, status }
+    })
+  });
+}
+
+// cargar pedidos al iniciar sesión admin
+async function afterLoginAdmin() {
+  if (window.__role !== "admin") return;
+  await loadOrders();
+}
+
+// envolver boot existente
+const __boot = boot;
+boot = async () => {
+  await __boot();
+  await afterLoginAdmin();
+};
+
+toggleCompleted?.addEventListener("change", loadOrders);

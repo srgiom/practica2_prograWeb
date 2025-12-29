@@ -304,3 +304,19 @@ input:focus {
 
 /* Utilidades */
 .hidden { display: none !important; }
+
+.toggle-completed {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  font-size: 15px;
+  color: #e5e7eb;
+}
+
+.toggle-completed input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #22c55e; /* verde coherente con el proyecto */
+}
