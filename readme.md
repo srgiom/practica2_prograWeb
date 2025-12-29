@@ -1,4 +1,4 @@
-# 🧾 Portal de Productos — Práctica 1
+# 🧾 Portal de Productos — Práctica 2
 
 ## 👨‍💻 Datos
 **Nombre:** Sergio Moreno  
@@ -6,64 +6,60 @@
 
 ---
 
-## 🌐 Enlace al proyecto desplegado
+## 🌐 Enlaces del proyecto
 
-🔗 **Código de la aplicación:**  
-👉 https://github.com/srgiom/practica1_prograWeb
+- **Repositorio GitHub:**  
+  https://github.com/srgiom/practica2_prograWeb
 
-🔗 **Aplicación en producción:**  
-👉 [https://practica1-prograweb.onrender.com/index.html](https://practica1-prograweb.onrender.com/index.html)
+- **Aplicación desplegada:**  
+  https://practica1-prograweb.onrender.com/index.html
 
-El proyecto está desplegado en **Render**, conectado a **MongoDB Atlas**, y funciona completamente online con autenticación, CRUD de productos, chat en tiempo real y subida de imágenes persistente.
+Aplicación desplegada en **Render**, conectada a **MongoDB Atlas**, con autenticación **JWT**, API **REST + GraphQL** y persistencia completa.
 
 ---
 
-## 🎯 Objetivo de la práctica
+## 🎯 Objetivo de la práctica 2
 
-Desarrollar una aplicación web completa (**frontend + backend**) que permita:
+Ampliar la aplicación desarrollada en la **Práctica 1** incorporando:
 
-- Autenticación de usuarios mediante **JWT**.  
-- Gestión de roles (`admin` y `user`).  
-- CRUD completo de productos con persistencia en **MongoDB Atlas**.  
-- Un **chat en tiempo real** con **Socket.IO**.  
+- Sistema completo de **pedidos (Orders)**.
+- **Carrito de compra** persistente.
+- Gestión de pedidos para **usuarios** y **administradores**.
+- Gestión de **usuarios (admin)**.
+- API **GraphQL** protegida por JWT.
 
-Además, se añadieron mejoras:
-
-1. **Persistencia del historial del chat** en la base de datos.  
-2. **Subida de imágenes** en productos (almacenadas en Mongo en formato Base64).  
-3. **Envío de imágenes en el chat**.  
+Manteniendo:
+- Persistencia en base de datos.
+- Control de roles.
+- Seguridad y validación en backend y frontend.
 
 ---
 
 ## ⚙️ Instalación y ejecución local
 
-### 📋 Requisitos previos
-- [Node.js 18+](https://nodejs.org/en/)  
-- Una cuenta gratuita en [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+### 📋 Requisitos
+- Node.js 18+
+- MongoDB Atlas
 
 ### 🧰 Instalación
-
 ```bash
-# 1. Clonar el repositorio
-cd portal-productos
-
-# 2. Instalar dependencias
 npm install
 
-# 3. Configurar las variables de entorno (.env)
+🔐 Variables de entorno (.env)
+
 PORT=3000
-MONGO_URI=mongodb+srv://usuario:contraseña@cluster.mongodb.net/portal
+MONGO_URI=mongodb+srv://usuario:password@cluster.mongodb.net/portal
 JWT_SECRET=clave-ultrasecreta
 JWT_EXPIRES=2h
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin
 ALLOW_ADMIN_REGISTER=true
 
-# 4. Iniciar el servidor
+▶️ Ejecutar
+
 npm start
 
-Luego abre en el navegador:
-👉 http://localhost:3000￼
+Acceso local: http://localhost:3000
 
 ⸻
 
@@ -73,88 +69,156 @@ src/
  ├── models/
  │   ├── User.js
  │   ├── Product.js
+ │   ├── Order.js          ← NUEVO (Práctica 2)
  │   └── ChatMessage.js
  ├── routes/
  │   ├── authRoutes.js
  │   ├── productRoutes.js
  │   └── chatRoutes.js
+ ├── graphql/
+ │   ├── schema.js         ← NUEVO
+ │   └── resolvers.js      ← NUEVO
  ├── middleware/
  │   └── authenticateJWT.js
  ├── public/
- │   ├── index.html       ← Portal de productos
- │   ├── chat.html        ← Chat en tiempo real
- │   ├── client.js        ← Lógica del frontend
- │   └── styles.css       ← Tema oscuro y diseño visual
- ├── config.js
- └── server.js
+ │   ├── index.html
+ │   ├── chat.html
+ │   ├── client.js
+ │   └── styles.css
+ ├── server.js
+ └── config.js
 .env
 
 
 ⸻
 
-🟩 1. Registro y login
-	1.	Accede a http://localhost:3000￼ o al despliegue online.
-	2.	Regístrate con un nuevo usuario o entra como admin (admin/admin).
-	3.	Se genera un token JWT almacenado en localStorage.
-	4.	El rol se muestra en la esquina superior derecha.
+🔐 Autenticación y roles
+	•	Autenticación mediante JWT.
+	•	Token almacenado en localStorage.
+	•	Roles disponibles:
+	•	user
+	•	admin
+
+El rol se valida:
+	•	En backend (middlewares y resolvers GraphQL).
+	•	En frontend (visibilidad y acciones permitidas).
 
 ⸻
 
-🟦 2. Gestión de productos (CRUD)
-	•	User: puede ver los productos existentes.
-	•	Admin: puede crear, editar y eliminar productos.
-	•	Cada producto incluye una imagen persistente, almacenada en MongoDB como Base64.
+🛒 Carrito de compra (Práctica 2)
+	•	Visible solo para usuarios autenticados.
+	•	Persistente en localStorage.
+	•	Funcionalidades:
+	•	Añadir productos.
+	•	Eliminar productos.
+	•	Calcular total.
+	•	Vaciar carrito tras compra.
+	•	La compra genera un pedido real en base de datos vía GraphQL.
 
 ⸻
 
-💬 3. Chat en tiempo real
-	•	Acceso mediante el botón “Chat”.
-	•	Solo usuarios autenticados pueden entrar (validación JWT en Socket.IO).
-	•	Características:
-	•	Mensajes con nombre, color, hora y texto.
-	•	Indicador de usuarios conectados.
-	•	Eventos de conexión/desconexión (🟢 / 🔴).
-	•	Estado “escribiendo…” en tiempo real.
-	•	Envío de imágenes (📎).
+📦 Modelo Order (Práctica 2)
+
+Cada pedido contiene:
+	•	Referencia al usuario.
+	•	Array de productos:
+	•	Producto
+	•	Cantidad
+	•	Precio en el momento de la compra
+	•	Estado:
+	•	pending
+	•	completed
+	•	Fecha de creación (createdAt).
+	•	Total del pedido.
+
+Persistido en MongoDB mediante Order.js.
+
+⸻
+
+👤 Historial de pedidos (User)
+
+Cada usuario autenticado dispone de:
+	•	Historial propio de pedidos.
+	•	Solo puede ver sus pedidos.
+	•	Información mostrada:
+	•	Fecha
+	•	Estado
+	•	Total
+	•	Persistente tras recargar la página.
+
+Consulta realizada mediante GraphQL protegido por JWT.
+
+⸻
+
+🧑‍💼 Gestión de pedidos (Admin)
+
+El administrador puede:
+	•	Ver todos los pedidos del sistema.
+	•	Filtrar pedidos por estado:
+	•	pending
+	•	completed
+	•	Ver detalle completo del pedido:
+	•	Usuario que lo realizó.
+	•	Productos comprados.
+	•	Cantidades y precios.
+	•	Total.
+	•	Fecha.
+	•	Marcar pedidos como completed.
+
+Todo gestionado desde el frontend con GraphQL.
+
+⸻
+
+👥 Gestión de usuarios (Admin)
+
+El administrador puede:
+	•	Listar todos los usuarios registrados.
+	•	Eliminar usuarios no administradores.
+	•	Cambiar rol de usuarios (user ↔ admin), con restricciones:
+	•	❌ No puede cambiar su propio rol.
+	•	❌ No puede eliminar un usuario con rol admin.
+
+Restricciones validadas en backend y frontend.
+
+⸻
+
+🔗 API GraphQL (Práctica 2)
+	•	Endpoint: /graphql
+	•	Protegida por JWT (Authorization: Bearer <token>).
+	•	Queries y mutations implementadas:
+	•	orders
+	•	order
+	•	myOrders
+	•	createOrder
+	•	updateOrderStatus
+	•	users
+	•	updateUserRole
+	•	deleteUser
+
+⸻
+
+💬 Chat en tiempo real (Práctica 1 mantenida)
+	•	Chat con Socket.IO.
+	•	Persistencia en MongoDB.
+	•	Envío de texto e imágenes.
+	•	Usuarios autenticados.
 	•	Historial persistente.
 
 ⸻
 
-🗃️ Persistencia de datos
-	•	Usuarios: encriptados con bcryptjs.
-	•	Productos: colección products (imágenes como Base64).
-	•	Chat: colección chatmessages (mensajes y fotos como Base64).
-	•	Todo permanece tras reiniciar o redeployar el servidor.
+💾 Persistencia de datos
+	•	Usuarios: MongoDB + bcrypt.
+	•	Productos: MongoDB (imágenes Base64).
+	•	Pedidos: MongoDB (Order).
+	•	Chat: MongoDB.
+	•	Ningún dato se pierde tras recargar o redeployar.
 
 ⸻
 
-🧱 Decisiones de desarrollo
-
-🔧 Arquitectura modular
-	•	models/: define los esquemas de MongoDB.
-	•	routes/: gestiona las rutas REST.
-	•	middleware/: valida JWT y roles.
-	•	public/: frontend servido por Express.
-	•	server.js: núcleo (Express + Socket.IO + Mongo Atlas).
-
-🔐 Autenticación JWT
-	•	JWT en rutas REST y sockets.
-	•	Incluye _id, username, role, color.
-	•	Middlewares authenticateJWT y authorizeRole.
-
-🧠 Roles y seguridad
-	•	user: lectura.
-	•	admin: CRUD completo.
-	•	Validación tanto en backend como en frontend.
-
-💾 Manejo de imágenes
-	•	Imágenes convertidas a Base64 y guardadas directamente en MongoDB.
-	•	Sin necesidad de carpetas /uploads, lo que permite despliegues en servidores sin disco persistente como Render.
-
-⚙️ Chat con persistencia
-	•	Mensajes (texto o imagen) guardados en MongoDB.
-	•	Socket.IO mantiene la sincronización en tiempo real.
-
-🎨 Interfaz
-	•	Tema oscuro, diseño limpio y responsive.
-	•	Animaciones suaves, botones redondeados, modales claros.
+🧠 Decisiones técnicas destacadas
+	•	Arquitectura modular.
+	•	Separación clara REST / GraphQL.
+	•	JWT compartido entre REST, GraphQL y Socket.IO.
+	•	Seguridad en backend y frontend.
+	•	Persistencia completa.
+	•	Preparado para despliegue en Render.
