@@ -33,16 +33,6 @@ Manteniendo:
 ```bash
 npm install
 
-🔐 Variables de entorno (.env)
-
-PORT=3000
-MONGO_URI=mongodb+srv://usuario:password@cluster.mongodb.net/portal
-JWT_SECRET=clave-ultrasecreta
-JWT_EXPIRES=2h
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin
-ALLOW_ADMIN_REGISTER=true
-
 ▶️ Ejecutar
 
 npm start
