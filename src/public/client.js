@@ -271,6 +271,60 @@ function applyRoleVisibility() {
   });
 }
 
+// =====================
+// HISTORIAL PEDIDOS USER
+// =====================
+const userOrdersSection = document.getElementById("user-orders");
+const userOrdersList = document.getElementById("user-orders-list");
+
+async function loadMyOrders() {
+  const token = localStorage.getItem("jwt");
+  if (!token || window.__role !== "user") return;
+
+  const r = await fetch("/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      query: `
+        query {
+          myOrders {
+            _id
+            status
+            total
+            createdAt
+            items {
+              quantity
+              product { nombre precio }
+            }
+          }
+        }
+      `
+    })
+  });
+
+  const j = await r.json();
+  if (j.errors) return;
+
+  userOrdersList.innerHTML = "";
+
+  j.data.myOrders.forEach(o => {
+    const li = document.createElement("li");
+    li.className = "item";
+    li.innerHTML = `
+      <div class="title">Pedido ${o._id.slice(-5)}</div>
+      <div class="sub">
+        ${new Date(o.createdAt).toLocaleString()} · ${o.status} · ${o.total} €
+      </div>
+    `;
+    userOrdersList.appendChild(li);
+  });
+
+  userOrdersSection.classList.remove("hidden");
+}
+
 // -------------------- Boot --------------------
 async function boot() {
   const token = localStorage.getItem("jwt");
@@ -284,6 +338,9 @@ async function boot() {
     btnLogout.classList.remove("hidden");
     authCard.classList.add("hidden");
     btnCart.classList.remove("hidden");
+    if (user.role === "user") {
+      loadMyOrders();
+    }
 renderCart();
   } else {
     window.__role = "guest";
@@ -296,7 +353,13 @@ renderCart();
 
   if (user.role === "admin") {
     document.getElementById("admin-orders").classList.remove("hidden");
-    loadOrders();
+    document.getElementById("admin-users").classList.remove("hidden");
+    await loadOrders();
+    await loadUsers();
+  }
+
+  if (user.role === "user") {
+    loadMyOrders();
   }
 }
 
@@ -403,11 +466,16 @@ cartBuy.onclick = async () => {
   saveCart();
   modalCart.classList.add("hidden");
   alert("Pedido creado correctamente");
+
+  if (window.__role === "user") {
+    loadMyOrders();
+  }
 };
 
 // ===== PRACTICA 2: ADMIN PEDIDOS =====
 const ordersList = document.getElementById("orders-list");
 const orderFilter = document.getElementById("order-filter");
+const usersList = document.getElementById("users-list");
 
 async function loadOrders() {
   const token = localStorage.getItem("jwt");
@@ -479,6 +547,126 @@ async function loadOrders() {
   });
 
   document.getElementById("admin-orders").classList.remove("hidden");
+}
+
+async function loadUsers() {
+  const token = localStorage.getItem("jwt");
+  if (!token || window.__role !== "admin") return;
+
+  const r = await fetch("/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      query: `
+        query {
+          users {
+            _id
+            username
+            role
+          }
+        }
+      `
+    })
+  });
+
+  const j = await r.json();
+  if (j.errors) return;
+
+  usersList.innerHTML = "";
+
+  j.data.users.forEach(u => {
+    const li = document.createElement("li");
+    li.className = "row item";
+
+  li.innerHTML = `
+    <div class="grow">
+      <div class="title">${u.username}</div>
+      <div class="sub">Rol: ${u.role}</div>
+    </div>
+    <div class="actions">
+      ${
+        u.role !== "admin"
+          ? `<button class="btn ghost" data-act="toggle">Cambiar rol</button>`
+          : ``
+      }
+      <button class="btn danger" data-act="delete">Eliminar</button>
+    </div>
+  `;
+
+    // cambiar rol
+    const toggleBtn = li.querySelector('[data-act="toggle"]');
+    if (toggleBtn) {
+      toggleBtn.onclick = async () => {
+        const newRole = u.role === "admin" ? "user" : "admin";
+        await updateUserRole(u._id, newRole);
+        loadUsers();
+      };
+    }
+
+    // eliminar usuario
+    li.querySelector('[data-act="delete"]').onclick = async () => {
+      if (!confirm(`¿Eliminar usuario ${u.username}?`)) return;
+      await deleteUser(u._id);
+      loadUsers();
+    };
+
+    usersList.appendChild(li);
+  });
+
+  document.getElementById("admin-users").classList.remove("hidden");
+}
+
+async function updateUserRole(userId, role) {
+  const token = localStorage.getItem("jwt");
+
+  await fetch("/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      query: `
+        mutation ($userId: ID!, $role: String!) {
+          updateUserRole(userId: $userId, role: $role) {
+            _id
+            role
+          }
+        }
+      `,
+      variables: { userId, role }
+    })
+  });
+}
+
+async function deleteUser(userId) {
+  const token = localStorage.getItem("jwt");
+
+  const r = await fetch("/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      query: `
+        mutation ($userId: ID!) {
+          deleteUser(userId: $userId)
+        }
+      `,
+      variables: { userId }
+    })
+  });
+
+  const j = await r.json();
+
+  if (j.errors && j.errors.length) {
+    alert(j.errors[0].message); 
+    return;
+  }
 }
 
 async function updateOrderStatus(orderId, status) {
@@ -561,6 +749,8 @@ async function viewOrderDetail(orderId) {
 async function afterLoginAdmin() {
   if (window.__role !== "admin") return;
   await loadOrders();
+  await loadUsers(); 
+
 }
 
 // envolver boot existente
