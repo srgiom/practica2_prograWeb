@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Portal de Productos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="app">
+  <!-- NAV -->
+  <header class="nav">
+    <div class="brand">Portal · Productos</div>
+    <nav class="nav-actions">
+      <button id="link-chat" class="btn ghost">Chat</button>
+      <span id="user-pill" class="pill hidden"></span>
+      <button id="btn-logout" class="btn danger hidden">Cerrar sesión</button>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <!-- AUTH -->
+    <section id="auth-card" class="card">
+      <h2 id="auth-title">Iniciar sesión</h2>
+      <div class="grid">
+        <label>Usuario
+          <input id="u" placeholder="p.ej. sergio" />
+        </label>
+        <label>Contraseña
+          <input id="p" type="password" placeholder="••••••" />
+        </label>
+      </div>
+      <div class="row">
+        <button id="btn-auth" class="btn primary">Entrar</button>
+        <button id="btn-toggle" class="btn ghost">Cambiar a registro</button>
+      </div>
+      <p id="auth-msg" class="msg"></p>
+    </section>
+
+    <!-- PRODUCTOS -->
+    <section class="card">
+      <div class="card-head row">
+        <h2 class="grow">Productos</h2>
+        <button id="btn-reload" class="btn ghost">Actualizar</button>
+        <button id="btn-new" class="btn success" data-role="admin">Nuevo</button>
+      </div>
+
+      <div id="empty" class="empty hidden">No hay productos aún.</div>
+      <ul id="list" class="list"></ul>
+    </section>
+  </main>
+
+  <!-- MODAL: DETALLE -->
+  <div id="modal-detail" class="modal hidden">
+    <div class="modal-card">
+      <h3>Detalle de producto</h3>
+      <div id="detail-body" class="detail"></div>
+      <div class="row end">
+        <button id="detail-close" class="btn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDITAR / CREAR -->
+  <div id="modal-edit" class="modal hidden">
+    <div class="modal-card">
+      <h3 id="edit-title">Nuevo producto</h3>
+      <label>Nombre <input id="f-nombre" /></label>
+      <label>Precio <input id="f-precio" type="number" step="0.01" /></label>
+      <label>Descripción <input id="f-desc" /></label>
+      <label>Imagen <input id="f-img" type="file" accept="image/*" /></label>
+      <div class="row end">
+        <button id="edit-cancel" class="btn">Cancelar</button>
+        <button id="edit-save" class="btn primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="client.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat en tiempo real</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="app">
+  <header class="nav">
+    <div class="brand">Chat · Portal de Productos</div>
+    <nav class="nav-actions">
+      <a class="btn ghost" href="index.html">← Volver</a>
+      <span class="pill">Conectados: <strong id="count">0</strong></span>
+      <span id="me-pill" class="pill"></span>
+    </nav>
+  </header>
+
+  <main class="chat-wrap">
+    <ul id="messages" class="chat"></ul>
+    <div id="typing" class="typing"></div>
+  </main>
+
+  <form id="form" class="chat-form" enctype="multipart/form-data">
+    <input id="input" autocomplete="off" placeholder="Escribe un mensaje..." />
+    <label class="btn ghost" style="cursor:pointer">
+      📎
+      <input id="file" type="file" accept="image/*" style="display:none" />
+    </label>
+    <button class="btn primary">Enviar</button>
+  </form>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module">
+    const token = localStorage.getItem("jwt");
+    if (!token) location.href = "index.html";
+
+    const socket = io({ auth: { token } });
+    const messages = document.getElementById("messages");
+    const typing = document.getElementById("typing");
+    const count = document.getElementById("count");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+    const file = document.getElementById("file");
+    const mePill = document.getElementById("me-pill");
+
+    const hhmm = ts =>
+      new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    // usuario
+    fetch("/api/auth/me", { headers: { Authorization: "Bearer " + token } })
+      .then(r => r.json())
+      .then(j => {
+        mePill.textContent = j.user.username;
+        mePill.style.background = j.user.color;
+      });
+
+    socket.on("usercount", n => (count.textContent = n));
+
+    socket.on("history", msgs => {
+      msgs.forEach(renderMsg);
+    });
+
+    socket.on("chat message", p => {
+      renderMsg(p);
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    socket.on("system", evt => {
+      const li = document.createElement("li");
+      li.className = "system";
+      li.textContent = evt.text;
+      messages.appendChild(li);
+    });
+
+    function renderMsg(p) {
+      const li = document.createElement("li");
+      li.className = "bubble";
+      let html = `
+        <span class="time">[${hhmm(p.ts)}]</span>
+        <span class="user" style="color:${p.color}">${p.user}</span>`;
+      if (p.text) html += `<span>${p.text}</span>`;
+      if (p.image)
+        html += `<div><img src="${p.image}" style="max-width:200px;border-radius:8px;margin-top:4px;border:1px solid #1f2937"></div>`;
+      li.innerHTML = html;
+      messages.appendChild(li);
+    }
+
+    // typing
+    const typingUsers = new Map();
+    const TYPING_STOP = 1200;
+    socket.on("typing", e => {
+      if (!e.user) return;
+      if (e.typing) {
+        if (typingUsers.has(e.user)) clearTimeout(typingUsers.get(e.user));
+        const to = setTimeout(() => {
+          typingUsers.delete(e.user);
+          renderTyping();
+        }, TYPING_STOP + 400);
+        typingUsers.set(e.user, to);
+      } else {
+        if (typingUsers.has(e.user)) {
+          clearTimeout(typingUsers.get(e.user));
+          typingUsers.delete(e.user);
+        }
+      }
+      renderTyping();
+    });
+
+    function renderTyping() {
+      const names = [...typingUsers.keys()];
+      typing.textContent = names.length
+        ? `${names.join(", ")} está escribiendo...`
+        : "";
+    }
+
+    let typingState = false;
+    let last = 0;
+    let loop = null;
+    input.addEventListener("input", () => {
+      last = Date.now();
+      sendTyping(true);
+      if (!loop) {
+        loop = setInterval(() => {
+          if (Date.now() - last > TYPING_STOP) {
+            clearInterval(loop);
+            loop = null;
+            sendTyping(false);
+          }
+        }, 300);
+      }
+    });
+    function sendTyping(state) {
+      if (state === typingState) return;
+      typingState = state;
+      socket.emit("typing", state);
+    }
+
+    // enviar mensajes (texto o imagen)
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const text = input.value.trim();
+      const imgFile = file.files[0];
+      let imageUrl = null;
+
+      if (imgFile) {
+        const fd = new FormData();
+        fd.append("image", imgFile);
+        const r = await fetch("/api/chat/upload", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + token },
+          body: fd
+        });
+        const j = await r.json();
+        if (j.ok) imageUrl = j.url;
+        file.value = "";
+      }
+
+      if (!text && !imageUrl) return;
+
+      socket.emit("chat message", { text, image: imageUrl, token });
+      input.value = "";
+      sendTyping(false);
+    });
+  </script>
+</body>
+</html>
