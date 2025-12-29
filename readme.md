@@ -27,7 +27,7 @@ Manteniendo:
 
 ### 📋 Requisitos
 - Node.js 18+
-- MongoDB Atlas
+- MongoDB 
 
 ### 🧰 Instalación
 ```bash
