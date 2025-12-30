@@ -6,6 +6,14 @@
 
 ---
 
+## 🌐 Despliegue
+
+La aplicación está desplegada y accesible públicamente en Render:
+
+🔗 **URL:** https://practica2-prograweb.onrender.com
+
+---
+
 ## 🎯 Objetivo de la práctica 2
 
 Ampliar la aplicación desarrollada en la **Práctica 1** incorporando:
@@ -30,6 +38,10 @@ Manteniendo:
 - MongoDB 
 
 ### 🧰 Instalación
+
+> Nota: Aunque la aplicación está desplegada en Render, también puede ejecutarse
+> en local siguiendo los pasos anteriores.
+
 ```bash
 npm install
 
