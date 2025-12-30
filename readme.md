@@ -8,13 +8,13 @@
 
 ## 🌐 Despliegue
 
-La aplicación está desplegada y accesible públicamente en Render:
+El proyecto está desplegado en **Render**, conectado a **MongoDB Atlas**, y funciona completamente online:
 
 🔗 **URL:** [https://practica2-prograweb.onrender.com](https://practica2-prograweb.onrender.com)
 
 ---
 
-## 🎯 Objetivo de la práctica 2
+## 🎯 Objetivo de la práctica
 
 Ampliar la aplicación desarrollada en la **Práctica 1** incorporando:
 
@@ -43,13 +43,17 @@ Manteniendo:
 > en local siguiendo estos pasos.
 
 ```bash
+▶️ Instalar dependencias
+
 npm install
 
 ▶️ Ejecutar
 
 npm start
 
-Acceso local: http://localhost:3000
+▶️ Acceder en local
+
+Abre en el navegador: http://localhost:3000
 
 ⸻
 
