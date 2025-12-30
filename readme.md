@@ -10,7 +10,7 @@
 
 La aplicación está desplegada y accesible públicamente en Render:
 
-🔗 **URL:** https://practica2-prograweb.onrender.com
+🔗 **URL:** [https://practica2-prograweb.onrender.com](https://practica2-prograweb.onrender.com)
 
 ---
 
@@ -40,7 +40,7 @@ Manteniendo:
 ### 🧰 Instalación
 
 > Nota: Aunque la aplicación está desplegada en Render, también puede ejecutarse
-> en local siguiendo los pasos anteriores.
+> en local siguiendo estos pasos.
 
 ```bash
 npm install
